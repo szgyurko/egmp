@@ -11,6 +11,7 @@
     <properties>
         <org.slf4j.version>1.7.2</org.slf4j.version>
         <ch.qos.logback.version>1.0.1</ch.qos.logback.version>
+        <junit.version>4.11</junit.version>
     </properties>
 
     <modules>
@@ -47,6 +48,12 @@
             <artifactId>logback-classic</artifactId>
             <version>${ch.qos.logback.version}</version>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

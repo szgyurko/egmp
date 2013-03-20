@@ -28,6 +28,6 @@ public enum EgmpImplementation {
 
     @Override
     public String toString() {
-        return EgmpImplementation.class.getPackage().getName() + "." + implementationClassname;
+        return EgmpImplementation.class.getPackage().getName() + ".impl." + implementationClassname;
     }
 }

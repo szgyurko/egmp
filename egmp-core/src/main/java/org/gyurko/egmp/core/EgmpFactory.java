@@ -25,7 +25,7 @@ public final class EgmpFactory {
 
         try {
             clazz = Class.forName(config.getImplementation().toString()).asSubclass(Egmp.class);
-            Constructor<? extends Egmp> constructor = clazz.getConstructor(String.class);
+            Constructor<? extends Egmp> constructor = clazz.getConstructor(EgmpConfig.class);
             Egmp egmp = constructor.newInstance(config);
 
             return egmp;

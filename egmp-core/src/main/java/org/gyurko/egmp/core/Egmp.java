@@ -9,10 +9,9 @@ public interface Egmp {
     /**
      * Initializes EGMP node. This is the first call to be made.
      *
-     * @param config The configuration for the EGMP node.
      * @see EgmpConfig
      */
-    void initEgmpNode(final EgmpConfig config);
+    void initEgmpNode() throws EgmpException;
 
     /**
      * Destroys EGMP node.
@@ -21,4 +20,9 @@ public interface Egmp {
 
     /** Returns true if the EGMP node is the elevated node. False otherwise */
     boolean isElevated();
+
+    /**
+     * Send heart-beat
+     */
+    void sendHeartBeat();
 }

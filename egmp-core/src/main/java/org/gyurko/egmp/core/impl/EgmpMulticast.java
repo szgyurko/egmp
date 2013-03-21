@@ -17,6 +17,8 @@ public class EgmpMulticast implements Egmp {
     private static final Logger LOGGER = LoggerFactory.getLogger(EgmpMulticast.class);
     /** Receive buffer length */
     private static final int RECEIVE_BUFFER_LENGTH = 1024;
+    /** Timeout, after we restart elevation process if we don't hear an elevated message */
+    private static final long ELEVATION_TIMEOUT = 10000;
     /** EGMP config */
     private EgmpConfig egmpConfig;
     /** Heartbeat sender thread */
@@ -27,6 +29,8 @@ public class EgmpMulticast implements Egmp {
     private MulticastSocket socket;
     /** Elevation state for the EGMP object */
     private boolean isElevated = true;
+    /** TS of last elevated message seen */
+    private long lastElevatedMessage = System.currentTimeMillis();
 
     /**
      * Default constructor.
@@ -99,7 +103,7 @@ public class EgmpMulticast implements Egmp {
     @Override
     public void sendHeartBeat() {
         DatagramPacket packet;
-        byte[] data = egmpConfig.getElevationStrategy().getDistributedMessage().getBytes();
+        byte[] data = (egmpConfig.getElevationStrategy().getDistributedMessage() + (isElevated ? "*" : "")).getBytes();
 
         packet = new DatagramPacket(data, data.length, egmpConfig.getIp(), egmpConfig.getPort());
         try {
@@ -129,6 +133,11 @@ public class EgmpMulticast implements Egmp {
             data = new String(packet.getData()).substring(0, packet.getLength());
 
             LOGGER.debug("Received data: |{}|", data);
+            if (data.endsWith("*")) {
+                data = data.substring(0, data.length() - 1);
+                lastElevatedMessage = System.currentTimeMillis();
+            }
+
             try {
                 long elevation = Long.parseLong(data);
                 if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
@@ -141,6 +150,12 @@ public class EgmpMulticast implements Egmp {
                 LOGGER.debug("Current elevation status is {}", (isElevated ? "ELEVATED" : "NON ELEVATED"));
             } catch (NumberFormatException nfe) {
                 LOGGER.warn("Data sent by {} is invalid", packet.getAddress().getHostAddress());
+            }
+
+            if (lastElevatedMessage + ELEVATION_TIMEOUT < System.currentTimeMillis()) {
+                LOGGER.info("Last elevated message timed out, resetting elevation procedure");
+                isElevated = true;
+                lastElevatedMessage = System.currentTimeMillis();
             }
         } catch (IOException ioe) {
             LOGGER.warn("Error during receiving UDP packet", ioe);

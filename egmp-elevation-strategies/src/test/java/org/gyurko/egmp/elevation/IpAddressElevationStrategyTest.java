@@ -9,10 +9,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.Inet4Address;
-import java.net.MulticastSocket;
+import java.net.*;
+import java.util.Enumeration;
 
 /**
  *
@@ -73,7 +71,7 @@ public class IpAddressElevationStrategyTest {
 
         for (int i = 0; i < 3; i++) {
             byte[] data = Long.toString(Long.MAX_VALUE).getBytes();
-            DatagramPacket packet = new DatagramPacket(data, data.length, Inet4Address.getByName("255.255.255.255"), PORT);
+            DatagramPacket packet = new DatagramPacket(data, data.length, getBroadcastAddress(), PORT);
 
             LOGGER.debug("Sending some max elevation data for testing");
             socket.send(packet);
@@ -83,4 +81,38 @@ public class IpAddressElevationStrategyTest {
 
         instance.shutdownEgpmNode();
     }
+
+    /**
+     * Tries to determine the lan local Broadcast address
+     *
+     * @returns The LAN local broadcast address
+     */
+    private InetAddress getBroadcastAddress() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()){
+                NetworkInterface current = interfaces.nextElement();
+                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
+                LOGGER.debug("Matching interface: {}", current);
+                for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
+                    LOGGER.debug("Checking address: {}", currentAddress);
+                    if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
+                    return currentAddress.getBroadcast();
+                }
+            }
+        } catch (SocketException e) {
+            LOGGER.warn("Cannot get local host IP");
+        }
+
+        InetAddress broadcastAddress = null;
+
+        try {
+            broadcastAddress = Inet4Address.getByName("255.255.255.255");
+        } catch (UnknownHostException uhe) {
+        }
+
+        return broadcastAddress;
+    }
+
 }

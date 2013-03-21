@@ -5,10 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
+import java.net.*;
+import java.util.Enumeration;
 
 /**
  *
@@ -19,6 +17,8 @@ public class EgmpUnicast implements Egmp {
     private static final Logger LOGGER = LoggerFactory.getLogger(EgmpUnicast.class);
     /** Receive buffer length */
     private static final int RECEIVE_BUFFER_LENGTH = 1024;
+    /** Timeout, after we restart elevation process if we don't hear an elevated message */
+    private static final long ELEVATION_TIMEOUT = 10000;
     /** EGMP config */
     private EgmpConfig egmpConfig;
     /** Heartbeat sender thread */
@@ -29,6 +29,8 @@ public class EgmpUnicast implements Egmp {
     private DatagramSocket socket;
     /** Elevation state for the EGMP object */
     private boolean isElevated = true;
+    /** TS of last elevated message seen */
+    private long lastElevatedMessage = System.currentTimeMillis();
 
     /**
      * Default constructor.
@@ -100,13 +102,13 @@ public class EgmpUnicast implements Egmp {
     public void sendHeartBeat() {
         DatagramSocket broadcastSocket;
         DatagramPacket packet;
-        byte[] data = egmpConfig.getElevationStrategy().getDistributedMessage().getBytes();
+        byte[] data = (egmpConfig.getElevationStrategy().getDistributedMessage() + (isElevated ? "*" : "")).getBytes();
 
         packet = new DatagramPacket(data, data.length, egmpConfig.getIp(), egmpConfig.getPort());
         try {
             broadcastSocket = new DatagramSocket();
             broadcastSocket.setBroadcast(true);
-            LOGGER.debug("Sending unicast heart-beat to address {} port {}", Inet4Address.getByName("255.255.255.255"), egmpConfig.getPort());
+            LOGGER.debug("Sending unicast heart-beat to address {} port {}", getBroadcastAddress(), egmpConfig.getPort());
             broadcastSocket.send(packet);
         } catch (IOException ioe) {
             LOGGER.warn("Cannot send unicast UDP packet", ioe);
@@ -128,6 +130,11 @@ public class EgmpUnicast implements Egmp {
             data = new String(packet.getData()).substring(0, packet.getLength());
 
             LOGGER.debug("Received data: |{}|", data);
+            if (data.endsWith("*")) {
+                data = data.substring(0, data.length() - 1);
+                lastElevatedMessage = System.currentTimeMillis();
+            }
+
             try {
                 long elevation = Long.parseLong(data);
                 if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
@@ -141,7 +148,47 @@ public class EgmpUnicast implements Egmp {
             } catch (NumberFormatException nfe) {
                 LOGGER.warn("Data sent by {} is invalid", packet.getAddress().getHostAddress());
             }
+
+            if (lastElevatedMessage + ELEVATION_TIMEOUT < System.currentTimeMillis()) {
+                LOGGER.info("Last elevated message timed out, resetting elevation procedure");
+                isElevated = true;
+                lastElevatedMessage = System.currentTimeMillis();
+            }
         } catch (IOException ioe) {
             LOGGER.warn("Error during receiving UDP packet", ioe);
         }
-    }}
+    }
+
+    /**
+     * Tries to determine the lan local Broadcast address
+     *
+     * @returns The LAN local broadcast address
+     */
+    private InetAddress getBroadcastAddress() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()){
+                NetworkInterface current = interfaces.nextElement();
+                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
+                LOGGER.debug("Matching interface: {}", current);
+                for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
+                    LOGGER.debug("Checking address: {}", currentAddress);
+                    if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
+                    return currentAddress.getBroadcast();
+                }
+            }
+        } catch (SocketException e) {
+            LOGGER.warn("Cannot get local host IP");
+        }
+
+        InetAddress broadcastAddress = null;
+
+        try {
+            broadcastAddress = Inet4Address.getByName("255.255.255.255");
+        } catch (UnknownHostException uhe) {
+        }
+
+        return broadcastAddress;
+    }
+}

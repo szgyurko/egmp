@@ -89,7 +89,7 @@ public class EgmpFactoryTest {
 
             LOGGER.debug("Received data: |{}|", data);
 
-            if ("0".equals(data))
+            if ("0*".equals(data))
                 break;
         }
 
@@ -133,7 +133,7 @@ public class EgmpFactoryTest {
 
             LOGGER.debug("Received data: |{}|", data);
 
-            if ("0".equals(data))
+            if ("0*".equals(data))
                 break;
         }
 

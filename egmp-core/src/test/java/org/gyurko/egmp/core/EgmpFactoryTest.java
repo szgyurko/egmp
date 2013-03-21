@@ -7,24 +7,24 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.DatagramPacket;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.MulticastSocket;
+import java.net.*;
 
 /**
- * Created by IntelliJ IDEA.
- * User: Szabolcs Gyurko
- * Date: 3/20/13
- * Time: 8:09 PM
  *
- * @author szabolcs
+ * @author Szabolcs Gyurko <szabolcs@gyurko.org>
  */
 public class EgmpFactoryTest {
     /** Class level logging */
     private static final Logger LOGGER = LoggerFactory.getLogger(EgmpFactoryTest.class);
+    private static final String UNICAST_V6_BROADCAST = "ff02::1";
     /** EGMP config object */
     private EgmpConfig config;
+    /** Multicast group to use */
+    private static final String MULTICAST_V4_GROUP = "239.190.1.1";
+    /** Multicast V6 group to use */
+    private static final String MULTICAST_V6_GROUP = "ff08::be:0101";
+    /** Multicast port to use */
+    private static final int PORT = 5328;
 
     @Before
     public void setUpConfig() {
@@ -41,44 +41,37 @@ public class EgmpFactoryTest {
 
     @Test
     public void testIPV4Multicast() throws Exception {
-        config.setIP(Inet4Address.getByName("239.190.1.1"));
-        config.setPort(5328);
+        config.setIp(Inet4Address.getByName(MULTICAST_V4_GROUP));
+        config.setPort(PORT);
 
         Egmp instance = EgmpFactory.getInstance(config);
-        try {
-            instance.initEgmpNode();
-        } catch (EgmpException eg) {
-            LOGGER.error("Error creating EGMP object", eg);
-        }
-
-        Assert.assertTrue(true);
+        instance.initEgmpNode();
     }
 
     @Test
     public void testIPV6Multicast() throws Exception {
-        config.setIP(Inet6Address.getByName("ff08::be:0101"));
-        config.setPort(5328);
+        config.setIp(Inet6Address.getByName(MULTICAST_V6_GROUP));
+        config.setPort(PORT);
 
         Egmp instance = EgmpFactory.getInstance(config);
         instance.initEgmpNode();
-
-        Assert.assertTrue(true);
     }
 
     @Test
-    public void testHeartBeatThread() throws Exception {
-        config.setIP(Inet4Address.getByName("239.190.1.1"));
-        config.setPort(5328);
+    public void testHeartBeatThreadMulticast() throws Exception {
+        config.setIp(Inet4Address.getByName(MULTICAST_V4_GROUP));
+        config.setPort(PORT);
         config.setHeartBeatSchedulerEnabled(true);
 
         /* Set up a listener */
-        MulticastSocket socket = new MulticastSocket(5328);
-        socket.joinGroup(Inet4Address.getByName("239.190.1.1"));
+        MulticastSocket socket = new MulticastSocket(PORT);
+        socket.joinGroup(Inet4Address.getByName(MULTICAST_V4_GROUP));
+        socket.setSoTimeout(2000);
 
         byte[] recvbuf = new byte[1024];
         DatagramPacket packet = new DatagramPacket(recvbuf, recvbuf.length);
 
-        /* Sleep a little bit for the IGMP to go out */
+        /* Sleep a little bit for the IGMP to go out and register with the L2 infrastructure */
         Thread.sleep(1000);
 
         Egmp instance = EgmpFactory.getInstance(config);
@@ -87,20 +80,108 @@ public class EgmpFactoryTest {
         int i;
 
         for (i = 0; i < 5; i++) {
-            socket.receive(packet);
+            try {
+                socket.receive(packet);
+            } catch (SocketTimeoutException se) {
+                continue;
+            }
             String data = new String(packet.getData()).substring(0, packet.getLength());
 
             LOGGER.debug("Received data: |{}|", data);
 
-            if ("NODE".equals(data))
+            if ("0".equals(data))
                 break;
         }
 
-        socket.leaveGroup(Inet4Address.getByName("239.190.1.1"));
+        socket.leaveGroup(Inet4Address.getByName(MULTICAST_V4_GROUP));
         socket.close();
 
         instance.shutdownEgpmNode();
 
         Assert.assertTrue(i < 5);
+    }
+
+    @Test
+    public void testHeartBeatThreadWithV6Multicast() throws Exception {
+        config.setIp(Inet4Address.getByName(MULTICAST_V6_GROUP));
+        config.setPort(PORT);
+        config.setHeartBeatSchedulerEnabled(true);
+
+        /* Set up a listener */
+        MulticastSocket socket = new MulticastSocket(PORT);
+        socket.joinGroup(Inet4Address.getByName(MULTICAST_V6_GROUP));
+        socket.setSoTimeout(2000);
+
+        byte[] recvbuf = new byte[1024];
+        DatagramPacket packet = new DatagramPacket(recvbuf, recvbuf.length);
+
+        /* Sleep a little bit for the IGMP to go out and register with the L2 infrastructure */
+        Thread.sleep(1000);
+
+        Egmp instance = EgmpFactory.getInstance(config);
+        instance.initEgmpNode();
+
+        int i;
+
+        for (i = 0; i < 5; i++) {
+            try {
+                socket.receive(packet);
+            } catch (SocketTimeoutException se) {
+                continue;
+            }
+            String data = new String(packet.getData()).substring(0, packet.getLength());
+
+            LOGGER.debug("Received data: |{}|", data);
+
+            if ("0".equals(data))
+                break;
+        }
+
+        socket.leaveGroup(Inet4Address.getByName(MULTICAST_V6_GROUP));
+        socket.close();
+
+        instance.shutdownEgpmNode();
+
+        Assert.assertTrue(i < 5);
+    }
+
+    @Test
+    public void testIPV4Unicast() throws Exception {
+        config.setIp(Inet4Address.getLocalHost());
+        config.setPort(PORT);
+        config.setImplementation(EgmpImplementation.UNICAST);
+
+        Egmp instance = EgmpFactory.getInstance(config);
+        instance.initEgmpNode();
+
+        instance.shutdownEgpmNode();
+    }
+
+    @Test(expected = EgmpException.class)
+    public void testIPV6Unicast() throws Exception {
+        config.setIp(Inet6Address.getByName(UNICAST_V6_BROADCAST));
+        config.setPort(PORT);
+        config.setImplementation(EgmpImplementation.UNICAST);
+
+        Egmp instance = EgmpFactory.getInstance(config);
+        instance.initEgmpNode();
+    }
+
+    @Test(expected = EgmpException.class)
+    public void testHeartBeatThreadUnicast() throws Exception {
+        config.setIp(Inet4Address.getLocalHost());
+        config.setPort(PORT);
+        config.setHeartBeatSchedulerEnabled(true);
+        config.setImplementation(EgmpImplementation.UNICAST);
+
+        /* Set up a listener */
+        DatagramSocket socket = new DatagramSocket(PORT, config.getIp());
+        socket.setSoTimeout(2000);
+
+        byte[] recvbuf = new byte[1024];
+        DatagramPacket packet = new DatagramPacket(recvbuf, recvbuf.length);
+
+        Egmp instance = EgmpFactory.getInstance(config);
+        instance.initEgmpNode();
     }
 }

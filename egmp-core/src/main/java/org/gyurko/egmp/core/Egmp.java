@@ -25,4 +25,9 @@ public interface Egmp {
      * Send heart-beat
      */
     void sendHeartBeat();
+
+    /**
+     * Receive heart-beat message
+     */
+    void receiveHeartBeat();
 }

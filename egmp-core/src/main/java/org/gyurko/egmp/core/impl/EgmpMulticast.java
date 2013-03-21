@@ -1,9 +1,6 @@
 package org.gyurko.egmp.core.impl;
 
-import org.gyurko.egmp.core.Egmp;
-import org.gyurko.egmp.core.EgmpConfig;
-import org.gyurko.egmp.core.EgmpException;
-import org.gyurko.egmp.core.EgmpHeartBeat;
+import org.gyurko.egmp.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,12 +15,18 @@ import java.net.MulticastSocket;
 public class EgmpMulticast implements Egmp {
     /** Class level logging */
     private static final Logger LOGGER = LoggerFactory.getLogger(EgmpMulticast.class);
+    /** Receive buffer length */
+    private static final int RECEIVE_BUFFER_LENGTH = 1024;
     /** EGMP config */
     private EgmpConfig egmpConfig;
-    /** Heartbeat thread */
-    private Thread heartBeatThread;
+    /** Heartbeat sender thread */
+    private Thread heartBeatSenderThread;
+    /** Heartbeat receiver thread */
+    private Thread heartBeatReceiverThread;
     /** The multicast socket object */
     private MulticastSocket socket;
+    /** Elevation state for the EGMP object */
+    private boolean isElevated = true;
 
     /**
      * Default constructor.
@@ -36,51 +39,112 @@ public class EgmpMulticast implements Egmp {
 
     @Override
     public void initEgmpNode() throws EgmpException {
-        LOGGER.info("Starting up EGMP node ~ Multicast communication");
-        LOGGER.info("Using multicast group {} port {}", egmpConfig.getIP().getHostAddress(),
+        LOGGER.info("Starting up EGMP node ~ Multicast communication ~ {}", egmpConfig.getElevationStrategy().getDescription());
+        LOGGER.info("Using multicast group {} port {}", egmpConfig.getIp().getHostAddress(),
                                                         egmpConfig.getPort());
 
-        if (egmpConfig.isHeartBeatSchedulerEnabled()) {
-            heartBeatThread = new Thread(new EgmpHeartBeat(this));
-            heartBeatThread.setDaemon(true);
-            heartBeatThread.start();
-        }
-
         try {
-            socket = new MulticastSocket();
+            socket = new MulticastSocket(egmpConfig.getPort());
+            socket.joinGroup(egmpConfig.getIp());
+            LOGGER.info("Receiving messages from multicast group {} port {}", egmpConfig.getIp().getHostAddress(), egmpConfig.getPort());
         } catch (IOException ioe) {
-            LOGGER.error("Could not create multicast socket");
+            LOGGER.error("Could not create multicast socket", ioe);
             throw new EgmpException("Could not create multicast socket");
         }
+
+        if (egmpConfig.isHeartBeatSchedulerEnabled()) {
+            heartBeatSenderThread = new Thread(new EgmpHeartBeatSender(this));
+            heartBeatSenderThread.setDaemon(true);
+            heartBeatSenderThread.start();
+        }
+
+        heartBeatReceiverThread = new Thread(new EgmpHeartBeatReceiver(this));
+        heartBeatReceiverThread.setDaemon(true);
+        heartBeatReceiverThread.start();
     }
 
     @Override
     public void shutdownEgpmNode() {
-        if (egmpConfig.isHeartBeatSchedulerEnabled() && heartBeatThread != null && heartBeatThread.isAlive()) {
-            heartBeatThread.interrupt();
+        if (egmpConfig.isHeartBeatSchedulerEnabled() && heartBeatSenderThread != null && heartBeatSenderThread.isAlive()) {
+            heartBeatSenderThread.interrupt();
             try {
-                heartBeatThread.join();
+                heartBeatSenderThread.join();
             } catch (InterruptedException ie) {
-                LOGGER.warn("Interrupted while waiting for the heartbeat termination", ie);
+                LOGGER.warn("Interrupted while waiting for the heartbeat sender termination", ie);
             }
+        }
+
+        if (heartBeatReceiverThread != null && heartBeatReceiverThread.isAlive()) {
+            heartBeatReceiverThread.interrupt();
+            try {
+                heartBeatReceiverThread.join();
+            } catch (InterruptedException ie) {
+                LOGGER.warn("Interrupted while waiting for the heartbeat receiver termination", ie);
+            }
+        }
+
+        try {
+            socket.leaveGroup(egmpConfig.getIp());
+            socket.close();
+        } catch (IOException ioe) {
+            LOGGER.warn("Error during closing the multicast socket");
         }
     }
 
     @Override
     public boolean isElevated() {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
+        return isElevated;
     }
 
     @Override
     public void sendHeartBeat() {
         DatagramPacket packet;
+        byte[] data = egmpConfig.getElevationStrategy().getDistributedMessage().getBytes();
 
-        packet = new DatagramPacket("NODE".getBytes(), 4, egmpConfig.getIP(), egmpConfig.getPort());
+        packet = new DatagramPacket(data, data.length, egmpConfig.getIp(), egmpConfig.getPort());
         try {
-            LOGGER.debug("Sending multicast heart-beat to group {} port {}", egmpConfig.getIP().getHostName(), egmpConfig.getPort());
-            socket.send(packet);
+            LOGGER.debug("Sending multicast heart-beat to group {} port {}", egmpConfig.getIp().getHostAddress(), egmpConfig.getPort());
+            if (egmpConfig.getDatagramPacketTTL() > 0) {
+                socket.send(packet, (byte) egmpConfig.getDatagramPacketTTL());
+            } else {
+                socket.send(packet);
+            }
         } catch (IOException ioe) {
             LOGGER.warn("Cannot send multicast UDP packet", ioe);
         }
     }
+
+    @Override
+    public void receiveHeartBeat() {
+        if (socket == null) return;
+
+        DatagramPacket packet;
+        byte[] recvbuf = new byte[RECEIVE_BUFFER_LENGTH];
+
+        packet = new DatagramPacket(recvbuf, recvbuf.length);
+        try {
+            String data;
+            socket.receive(packet);
+
+            data = new String(packet.getData()).substring(0, packet.getLength());
+
+            LOGGER.debug("Received data: |{}|", data);
+            try {
+                long elevation = Long.parseLong(data);
+                if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
+                    if (isElevated) LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
+                    isElevated = false;
+                } else {
+                    if (!isElevated) LOGGER.info("Changing new elevated node to this node");
+                    isElevated = true;
+                }
+                LOGGER.debug("Current elevation status is {}", (isElevated ? "ELEVATED" : "NON ELEVATED"));
+            } catch (NumberFormatException nfe) {
+                LOGGER.warn("Data sent by {} is invalid", packet.getAddress().getHostAddress());
+            }
+        } catch (IOException ioe) {
+            LOGGER.warn("Error during receiving UDP packet", ioe);
+        }
+    }
 }
+

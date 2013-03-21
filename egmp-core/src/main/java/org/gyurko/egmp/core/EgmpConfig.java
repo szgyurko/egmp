@@ -1,6 +1,5 @@
 package org.gyurko.egmp.core;
 
-import java.net.Inet6Address;
 import java.net.InetAddress;
 
 /**
@@ -16,6 +15,11 @@ public class EgmpConfig {
     private int port;
     /** Whether to start a heartbeat thread or not */
     private boolean heartBeatSchedulerEnabled = false;
+    /** Limit datagram packet TTL to a certain number */
+    private int datagramPacketTTL = 0;
+    /** Elevation strategy to be used */
+    private EgmpElevationStrategy elevationStrategy = new DummyElevationStrategy();
+
     /**
      * Getter for implementation field.
      *
@@ -39,16 +43,16 @@ public class EgmpConfig {
      *
      * @return
      */
-    public InetAddress getIP() {
+    public InetAddress getIp() {
         return ip;
     }
 
     /**
      * Standard setter
      *
-     * @param ip New multicast address
+     * @param ip IP address to use
      */
-    public void setIP(final InetAddress ip) {
+    public void setIp(final InetAddress ip) {
         this.ip = ip;
     }
 
@@ -86,5 +90,41 @@ public class EgmpConfig {
      */
     public void setHeartBeatSchedulerEnabled(final boolean heartBeatSchedulerEnabled) {
         this.heartBeatSchedulerEnabled = heartBeatSchedulerEnabled;
+    }
+
+    /**
+     * Standard getter
+     *
+     * @return
+     */
+    public int getDatagramPacketTTL() {
+        return datagramPacketTTL;
+    }
+
+    /**
+     * Standard setter
+     *
+     * @param datagramPacketTTL TTL for the datagram packet
+     */
+    public void setDatagramPacketTTL(final int datagramPacketTTL) {
+        this.datagramPacketTTL = datagramPacketTTL;
+    }
+
+    /**
+     * Standard getter
+     *
+     * @return
+     */
+    public EgmpElevationStrategy getElevationStrategy() {
+        return elevationStrategy;
+    }
+
+    /**
+     * Standard setter
+     *
+     * @param elevationStrategy The elevation strategy to be used
+     */
+    public void setElevationStrategy(final EgmpElevationStrategy elevationStrategy) {
+        this.elevationStrategy = elevationStrategy;
     }
 }

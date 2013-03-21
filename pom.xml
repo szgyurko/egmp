@@ -16,6 +16,7 @@
 
     <modules>
         <module>egmp-core</module>
+        <module>egmp-elevation-strategies</module>
     </modules>
 
     <dependencies>

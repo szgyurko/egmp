@@ -16,6 +16,7 @@ import java.net.*;
 public class EgmpFactoryTest {
     /** Class level logging */
     private static final Logger LOGGER = LoggerFactory.getLogger(EgmpFactoryTest.class);
+    /** Unicast broadcast for IPv6 */
     private static final String UNICAST_V6_BROADCAST = "ff02::1";
     /** EGMP config object */
     private EgmpConfig config;

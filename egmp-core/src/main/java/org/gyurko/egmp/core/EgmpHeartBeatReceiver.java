@@ -34,13 +34,7 @@ public class EgmpHeartBeatReceiver implements Runnable {
         }
 
         while (!Thread.currentThread().interrupted()) {
-            try {
-                egmp.receiveHeartBeat();
-
-                Thread.sleep(SLEEP_TIME);
-            } catch (InterruptedException ie) {
-                break;
-            }
+            egmp.receiveHeartBeat();
         }
     }
 }

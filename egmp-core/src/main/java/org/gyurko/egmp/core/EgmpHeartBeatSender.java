@@ -12,8 +12,6 @@ public class EgmpHeartBeatSender implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EgmpHeartBeatSender.class);
     /** EGMP object */
     private Egmp egmp;
-    /** Thread sleep time */
-    private static final int SLEEP_TIME = 10000;
 
     /**
      * Default constructor
@@ -37,7 +35,7 @@ public class EgmpHeartBeatSender implements Runnable {
             try {
                 egmp.sendHeartBeat();
 
-                Thread.sleep(SLEEP_TIME);
+                Thread.sleep(egmp.getEgmpConfig().getHeartBeatSendFrequency());
             } catch (InterruptedException ie) {
                 break;
             }

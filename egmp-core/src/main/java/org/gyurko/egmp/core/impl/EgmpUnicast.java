@@ -41,6 +41,15 @@ public class EgmpUnicast implements Egmp {
         egmpConfig = config;
     }
 
+    /**
+     * Standard getter
+     *
+     * @return EGMP Config object
+     */
+    public EgmpConfig getEgmpConfig() {
+        return egmpConfig;
+    }
+
     @Override
     public void initEgmpNode() throws EgmpException {
         LOGGER.info("Starting up EGMP node ~ Unicast communication ~ {}", egmpConfig.getElevationStrategy().getDescription());
@@ -137,10 +146,11 @@ public class EgmpUnicast implements Egmp {
 
             try {
                 long elevation = Long.parseLong(data);
+                LOGGER.debug("Own elevation score: {}, received elevation score: {}", egmpConfig.getElevationStrategy().getElevationLevel(), elevation);
                 if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
                     if (isElevated) LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
                     isElevated = false;
-                } else {
+                } else if (!isOwnAddress(packet.getAddress())) {
                     if (!isElevated) LOGGER.info("Changing new elevated node to this node");
                     isElevated = true;
                 }
@@ -190,5 +200,32 @@ public class EgmpUnicast implements Egmp {
         }
 
         return broadcastAddress;
+    }
+
+    /**
+     * Check if the address is a local address
+     *
+     * @param address The address to check
+     * @returns true if it's our own address
+     */
+    private boolean isOwnAddress(InetAddress address) {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()){
+                NetworkInterface current = interfaces.nextElement();
+                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
+                LOGGER.debug("Matching interface: {}", current);
+                for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
+                    LOGGER.debug("Checking address: {}", currentAddress);
+                    if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
+                    if (currentAddress.getAddress().getHostAddress().equals(address.getHostAddress())) return true;
+                }
+            }
+        } catch (SocketException e) {
+            LOGGER.warn("Cannot get local host IP");
+        }
+
+        return false;
     }
 }

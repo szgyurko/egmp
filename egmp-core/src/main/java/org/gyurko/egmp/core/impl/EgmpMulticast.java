@@ -5,8 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.MulticastSocket;
+import java.net.*;
+import java.util.Enumeration;
 
 /**
  *
@@ -18,7 +18,7 @@ public class EgmpMulticast implements Egmp {
     /** Receive buffer length */
     private static final int RECEIVE_BUFFER_LENGTH = 1024;
     /** Timeout, after we restart elevation process if we don't hear an elevated message */
-    private static final long ELEVATION_TIMEOUT = 10000;
+    private static final long ELEVATION_TIMEOUT = 15000;
     /** EGMP config */
     private EgmpConfig egmpConfig;
     /** Heartbeat sender thread */
@@ -39,6 +39,15 @@ public class EgmpMulticast implements Egmp {
      */
     public EgmpMulticast(final EgmpConfig config) {
         egmpConfig = config;
+    }
+
+    /**
+     * Standard getter
+     *
+     * @return EGMP Config object
+     */
+    public EgmpConfig getEgmpConfig() {
+        return egmpConfig;
     }
 
     @Override
@@ -140,10 +149,11 @@ public class EgmpMulticast implements Egmp {
 
             try {
                 long elevation = Long.parseLong(data);
+                LOGGER.debug("Own elevation score: {}, received elevation score: {}", egmpConfig.getElevationStrategy().getElevationLevel(), elevation);
                 if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
                     if (isElevated) LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
                     isElevated = false;
-                } else {
+                } else if (!isOwnAddress(packet.getAddress()) && elevation == egmpConfig.getElevationStrategy().getElevationLevel()) {
                     if (!isElevated) LOGGER.info("Changing new elevated node to this node");
                     isElevated = true;
                 }
@@ -161,5 +171,34 @@ public class EgmpMulticast implements Egmp {
             LOGGER.warn("Error during receiving UDP packet", ioe);
         }
     }
+
+    /**
+     * Check if the address is a local address
+     *
+     * @param address The address to check
+     * @returns true if it's our own address
+     */
+    private boolean isOwnAddress(InetAddress address) {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()){
+                NetworkInterface current = interfaces.nextElement();
+                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
+                LOGGER.debug("Matching interface: {}", current);
+                for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
+                    LOGGER.debug("Checking address: {}", currentAddress);
+                    if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
+                    LOGGER.debug("Matching address: {} against {}", currentAddress.getAddress().getHostAddress(), address.getHostAddress());
+                    if (currentAddress.getAddress().getHostAddress().equals(address.getHostAddress())) return true;
+                }
+            }
+        } catch (SocketException e) {
+            LOGGER.warn("Cannot get local host IP");
+        }
+
+        return false;
+    }
+
 }
 

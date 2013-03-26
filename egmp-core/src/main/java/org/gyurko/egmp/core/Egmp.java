@@ -30,4 +30,11 @@ public interface Egmp {
      * Receive heart-beat message
      */
     void receiveHeartBeat();
+
+    /**
+     * Standard getter
+     *
+     * @return EGMP Config object
+     */
+    EgmpConfig getEgmpConfig();
 }

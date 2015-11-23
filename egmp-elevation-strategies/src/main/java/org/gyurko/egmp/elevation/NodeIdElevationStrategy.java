@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 public class NodeIdElevationStrategy extends DummyElevationStrategy {
     /** Class level logging */
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeIdElevationStrategy.class);
-    /** bytes in java are signed, therefore if a negative number comes out, we have to do binary complement operation */
-    private static final long BYTE_OVERFLOW_VALUE = 127;
 
     @Override
     public long getElevationLevel() {
@@ -21,7 +19,7 @@ public class NodeIdElevationStrategy extends DummyElevationStrategy {
         try {
             elevation = Long.parseLong(System.getProperty("EGMP_NODE_ID"));
         } catch (NumberFormatException nfe) {
-            LOGGER.error("EGMP_NODE_ID system property (JVM level) is not defined, but you are using node ID based elevation. Please define it.");
+            LOGGER.error("EGMP_NODE_ID system property (JVM level) is not defined, but you are using node ID based elevation. Please check your config.");
         }
 
         return elevation;

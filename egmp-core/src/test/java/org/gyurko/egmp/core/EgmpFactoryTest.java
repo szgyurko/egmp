@@ -1,7 +1,7 @@
 package org.gyurko.egmp.core;
 
-import junit.framework.Assert;
 import org.gyurko.egmp.core.impl.EgmpMulticast;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -47,6 +47,7 @@ public class EgmpFactoryTest {
 
         Egmp instance = EgmpFactory.getInstance(config);
         instance.initEgmpNode();
+        instance.shutdownEgpmNode();
     }
 
     @Test
@@ -56,6 +57,7 @@ public class EgmpFactoryTest {
 
         Egmp instance = EgmpFactory.getInstance(config);
         instance.initEgmpNode();
+        instance.shutdownEgpmNode();
     }
 
     @Test
@@ -169,7 +171,7 @@ public class EgmpFactoryTest {
     }
 
     @Test(expected = EgmpException.class)
-    public void testHeartBeatThreadUnicast() throws Exception {
+    public void testHeartBeatThreadUnicastIfPortIsAlreadyInUse() throws Exception {
         config.setIp(Inet4Address.getLocalHost());
         config.setPort(PORT);
         config.setHeartBeatSchedulerEnabled(true);
@@ -183,6 +185,10 @@ public class EgmpFactoryTest {
         DatagramPacket packet = new DatagramPacket(recvbuf, recvbuf.length);
 
         Egmp instance = EgmpFactory.getInstance(config);
-        instance.initEgmpNode();
+        try {
+            instance.initEgmpNode();
+        } finally {
+            socket.close();
+        }
     }
 }

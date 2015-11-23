@@ -41,6 +41,8 @@ public class EgmpUnicast implements Egmp {
         egmpConfig = config;
     }
 
+    private EgmpUnicast() {}
+
     /**
      * Standard getter
      *
@@ -50,18 +52,18 @@ public class EgmpUnicast implements Egmp {
         return egmpConfig;
     }
 
-    @Override
     public void initEgmpNode() throws EgmpException {
         LOGGER.info("Starting up EGMP node ~ Unicast communication ~ {}", egmpConfig.getElevationStrategy().getDescription());
-        LOGGER.info("Using unicast address {} port {}", egmpConfig.getIp().getHostAddress(),
-                egmpConfig.getPort());
 
         if (egmpConfig.getIp() instanceof Inet6Address) {
             throw new EgmpException("IPv6 does not support unicast for broadcasting. Use Multicast instead.");
         }
+        LOGGER.info("Using unicast address {} port {}", egmpConfig.getIp().getHostAddress(),
+                egmpConfig.getPort());
 
         try {
             socket = new DatagramSocket(egmpConfig.getPort(), egmpConfig.getIp());
+            socket.setSoTimeout((int)egmpConfig.getHeartBeatSendFrequency());
             LOGGER.info("Receiving messages from unicast address {} port {}", egmpConfig.getIp().getHostAddress(), egmpConfig.getPort());
         } catch (IOException ioe) {
             LOGGER.error("Could not create unicast socket", ioe);
@@ -79,7 +81,6 @@ public class EgmpUnicast implements Egmp {
         heartBeatReceiverThread.start();
     }
 
-    @Override
     public void shutdownEgpmNode() {
         if (egmpConfig.isHeartBeatSchedulerEnabled() && heartBeatSenderThread != null && heartBeatSenderThread.isAlive()) {
             heartBeatSenderThread.interrupt();
@@ -100,14 +101,13 @@ public class EgmpUnicast implements Egmp {
         }
 
         socket.close();
+        LOGGER.info("EGMP node shutdown completed");
     }
 
-    @Override
     public boolean isElevated() {
         return isElevated;
     }
 
-    @Override
     public void sendHeartBeat() {
         DatagramSocket broadcastSocket;
         DatagramPacket packet;
@@ -124,7 +124,6 @@ public class EgmpUnicast implements Egmp {
         }
     }
 
-    @Override
     public void receiveHeartBeat() {
         if (socket == null) return;
 
@@ -148,7 +147,8 @@ public class EgmpUnicast implements Egmp {
                 long elevation = Long.parseLong(data);
                 LOGGER.debug("Own elevation score: {}, received elevation score: {}", egmpConfig.getElevationStrategy().getElevationLevel(), elevation);
                 if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
-                    if (isElevated) LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
+                    if (isElevated)
+                        LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
                     isElevated = false;
                 } else if (!isOwnAddress(packet.getAddress())) {
                     if (!isElevated) LOGGER.info("Changing new elevated node to this node");
@@ -164,6 +164,10 @@ public class EgmpUnicast implements Egmp {
                 isElevated = true;
                 lastElevatedMessage = System.currentTimeMillis();
             }
+        } catch (SocketTimeoutException ste) {
+            LOGGER.info("Last elevated message timed out, resetting elevation procedure");
+            isElevated = true;
+            lastElevatedMessage = System.currentTimeMillis();
         } catch (IOException ioe) {
             LOGGER.warn("Error during receiving UDP packet", ioe);
         }
@@ -179,11 +183,11 @@ public class EgmpUnicast implements Egmp {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()){
                 NetworkInterface current = interfaces.nextElement();
-                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                LOGGER.trace("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
                 if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
-                LOGGER.debug("Matching interface: {}", current);
+                LOGGER.trace("Matching interface: {}", current);
                 for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
-                    LOGGER.debug("Checking address: {}", currentAddress);
+                    LOGGER.trace("Checking address: {}", currentAddress);
                     if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
                     return currentAddress.getBroadcast();
                 }
@@ -213,11 +217,11 @@ public class EgmpUnicast implements Egmp {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()){
                 NetworkInterface current = interfaces.nextElement();
-                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                LOGGER.trace("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
                 if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
-                LOGGER.debug("Matching interface: {}", current);
+                LOGGER.trace("Matching interface: {}", current);
                 for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
-                    LOGGER.debug("Checking address: {}", currentAddress);
+                    LOGGER.trace("Checking address: {}", currentAddress);
                     if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
                     if (currentAddress.getAddress().getHostAddress().equals(address.getHostAddress())) return true;
                 }

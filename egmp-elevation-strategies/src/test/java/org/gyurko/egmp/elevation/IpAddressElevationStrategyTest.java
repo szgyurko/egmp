@@ -32,7 +32,7 @@ public class IpAddressElevationStrategyTest {
     }
 
     @Test
-    public void testIPElevationStrategy() throws Exception {
+    public void testIPElevationStrategyMulticast() throws Exception {
         config.setIp(Inet4Address.getByName(MULTICAST_V4_GROUP));
         config.setPort(PORT);
         config.setHeartBeatSchedulerEnabled(true);
@@ -49,7 +49,7 @@ public class IpAddressElevationStrategyTest {
             LOGGER.debug("Sending some max elevation data for testing");
             socket.send(packet);
 
-            Thread.sleep(10000);
+            Thread.sleep(5000);
         }
 
         instance.shutdownEgpmNode();
@@ -76,7 +76,7 @@ public class IpAddressElevationStrategyTest {
             LOGGER.debug("Sending some max elevation data for testing");
             socket.send(packet);
 
-            Thread.sleep(10000);
+            Thread.sleep(5000);
         }
 
         instance.shutdownEgpmNode();
@@ -92,11 +92,11 @@ public class IpAddressElevationStrategyTest {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()){
                 NetworkInterface current = interfaces.nextElement();
-                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                LOGGER.trace("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
                 if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
-                LOGGER.debug("Matching interface: {}", current);
+                LOGGER.trace("Matching interface: {}", current);
                 for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
-                    LOGGER.debug("Checking address: {}", currentAddress);
+                    LOGGER.trace("Checking address: {}", currentAddress);
                     if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
                     return currentAddress.getBroadcast();
                 }

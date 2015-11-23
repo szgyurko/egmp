@@ -6,7 +6,7 @@ package org.gyurko.egmp.core;
  */
 public enum EgmpImplementation {
     /** Dummy implementation */
-    UNKNOWN("EgmpDummy"),
+    DUMMY("EgmpDummy"),
 
     /** Unicast based node management */
     UNICAST("EgmpUnicast"),

@@ -22,7 +22,6 @@ public class EgmpHeartBeatSender implements Runnable {
         egmp = implementation;
     }
 
-    @Override
     public void run() {
         LOGGER.info("EGMP heart-beat sender thread has been started");
 
@@ -32,9 +31,8 @@ public class EgmpHeartBeatSender implements Runnable {
         }
 
         while (!Thread.currentThread().interrupted()) {
+            egmp.sendHeartBeat();
             try {
-                egmp.sendHeartBeat();
-
                 Thread.sleep(egmp.getEgmpConfig().getHeartBeatSendFrequency());
             } catch (InterruptedException ie) {
                 break;

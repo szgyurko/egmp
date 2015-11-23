@@ -40,7 +40,6 @@ public class Main implements Runnable {
     /**
      * Main cycle
      */
-    @Override
     public void run() {
         EgmpConfig egmpConfig = new EgmpConfig();
 
@@ -54,7 +53,6 @@ public class Main implements Runnable {
         if (args.length > 0) {
             try {
                 int nodeId = Integer.parseInt(args[0]);
-                egmpConfig.setElevationStrategy(new NodeIdElevationStrategy());
                 System.setProperty("EGMP_NODE_ID", Integer.toString(nodeId));
                 egmpConfig.setElevationStrategy(new NodeIdElevationStrategy());
             } catch (NumberFormatException nfe) {
@@ -78,7 +76,7 @@ public class Main implements Runnable {
         try {
             egmp.initEgmpNode();
         } catch (EgmpException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            e.printStackTrace();
         }
 
         try {

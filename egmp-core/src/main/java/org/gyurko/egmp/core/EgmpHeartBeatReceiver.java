@@ -13,7 +13,7 @@ public class EgmpHeartBeatReceiver implements Runnable {
     /** EGMP instance */
     private Egmp egmp;
     /** Thread sleep time */
-    private static final int SLEEP_TIME = 10000;
+    private static final int SLEEP_TIME = 10;
 
     /**
      * Default constructor
@@ -24,7 +24,6 @@ public class EgmpHeartBeatReceiver implements Runnable {
         this.egmp = implementation;
     }
 
-    @Override
     public void run() {
         LOGGER.info("EGMP heart-beat receiver thread has been started");
 
@@ -35,6 +34,12 @@ public class EgmpHeartBeatReceiver implements Runnable {
 
         while (!Thread.currentThread().interrupted()) {
             egmp.receiveHeartBeat();
+            try {
+                /* To ensure that we sleep a bit even if the implementation of the receiver fails to */
+                Thread.sleep(SLEEP_TIME);
+            } catch (InterruptedException ie) {
+                break;
+            }
         }
     }
 }

@@ -41,6 +41,8 @@ public class EgmpMulticast implements Egmp {
         egmpConfig = config;
     }
 
+    private EgmpMulticast() {}
+
     /**
      * Standard getter
      *
@@ -50,7 +52,6 @@ public class EgmpMulticast implements Egmp {
         return egmpConfig;
     }
 
-    @Override
     public void initEgmpNode() throws EgmpException {
         LOGGER.info("Starting up EGMP node ~ Multicast communication ~ {}", egmpConfig.getElevationStrategy().getDescription());
         LOGGER.info("Using multicast group {} port {}", egmpConfig.getIp().getHostAddress(),
@@ -59,6 +60,7 @@ public class EgmpMulticast implements Egmp {
         try {
             socket = new MulticastSocket(egmpConfig.getPort());
             socket.joinGroup(egmpConfig.getIp());
+            socket.setSoTimeout((int)egmpConfig.getHeartBeatSendFrequency());
             LOGGER.info("Receiving messages from multicast group {} port {}", egmpConfig.getIp().getHostAddress(), egmpConfig.getPort());
         } catch (IOException ioe) {
             LOGGER.error("Could not create multicast socket", ioe);
@@ -76,12 +78,12 @@ public class EgmpMulticast implements Egmp {
         heartBeatReceiverThread.start();
     }
 
-    @Override
     public void shutdownEgpmNode() {
         if (egmpConfig.isHeartBeatSchedulerEnabled() && heartBeatSenderThread != null && heartBeatSenderThread.isAlive()) {
             heartBeatSenderThread.interrupt();
             try {
                 heartBeatSenderThread.join();
+                LOGGER.debug("Heartbeat sender is stopped");
             } catch (InterruptedException ie) {
                 LOGGER.warn("Interrupted while waiting for the heartbeat sender termination", ie);
             }
@@ -91,6 +93,7 @@ public class EgmpMulticast implements Egmp {
             heartBeatReceiverThread.interrupt();
             try {
                 heartBeatReceiverThread.join();
+                LOGGER.debug("Heartbeat receiver is stopped");
             } catch (InterruptedException ie) {
                 LOGGER.warn("Interrupted while waiting for the heartbeat receiver termination", ie);
             }
@@ -99,17 +102,16 @@ public class EgmpMulticast implements Egmp {
         try {
             socket.leaveGroup(egmpConfig.getIp());
             socket.close();
+            LOGGER.info("EGMP node shutdown completed");
         } catch (IOException ioe) {
             LOGGER.warn("Error during closing the multicast socket");
         }
     }
 
-    @Override
     public boolean isElevated() {
         return isElevated;
     }
 
-    @Override
     public void sendHeartBeat() {
         DatagramPacket packet;
         byte[] data = (egmpConfig.getElevationStrategy().getDistributedMessage() + (isElevated ? "*" : "")).getBytes();
@@ -127,7 +129,6 @@ public class EgmpMulticast implements Egmp {
         }
     }
 
-    @Override
     public void receiveHeartBeat() {
         if (socket == null) return;
 
@@ -151,7 +152,8 @@ public class EgmpMulticast implements Egmp {
                 long elevation = Long.parseLong(data);
                 LOGGER.debug("Own elevation score: {}, received elevation score: {}", egmpConfig.getElevationStrategy().getElevationLevel(), elevation);
                 if (elevation > egmpConfig.getElevationStrategy().getElevationLevel()) {
-                    if (isElevated) LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
+                    if (isElevated)
+                        LOGGER.info("Changing new elevated node to {}", packet.getAddress().getHostAddress());
                     isElevated = false;
                 } else if (!isOwnAddress(packet.getAddress()) && elevation == egmpConfig.getElevationStrategy().getElevationLevel()) {
                     if (!isElevated) LOGGER.info("Changing new elevated node to this node");
@@ -167,6 +169,10 @@ public class EgmpMulticast implements Egmp {
                 isElevated = true;
                 lastElevatedMessage = System.currentTimeMillis();
             }
+        } catch (SocketTimeoutException ste) {
+            LOGGER.info("Last elevated message timed out, resetting elevation procedure");
+            isElevated = true;
+            lastElevatedMessage = System.currentTimeMillis();
         } catch (IOException ioe) {
             LOGGER.warn("Error during receiving UDP packet", ioe);
         }
@@ -183,14 +189,17 @@ public class EgmpMulticast implements Egmp {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()){
                 NetworkInterface current = interfaces.nextElement();
-                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                LOGGER.trace("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
                 if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
-                LOGGER.debug("Matching interface: {}", current);
+                LOGGER.trace("Matching interface: {}", current);
                 for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
-                    LOGGER.debug("Checking address: {}", currentAddress);
+                    LOGGER.trace("Checking address: {}", currentAddress);
                     if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
-                    LOGGER.debug("Matching address: {} against {}", currentAddress.getAddress().getHostAddress(), address.getHostAddress());
-                    if (currentAddress.getAddress().getHostAddress().equals(address.getHostAddress())) return true;
+                    LOGGER.trace("Matching address: {} against {}", currentAddress.getAddress().getHostAddress(), address.getHostAddress());
+                    if (currentAddress.getAddress().getHostAddress().equals(address.getHostAddress())) {
+                        LOGGER.trace("Address {} checks out as local address.", currentAddress);
+                        return true;
+                    }
                 }
             }
         } catch (SocketException e) {

@@ -1,6 +1,5 @@
 package org.gyurko.egmp.elevation;
 
-import org.gyurko.egmp.core.DummyElevationStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,13 +24,13 @@ public class IpV6AddressElevationStrategy extends IpAddressElevationStrategy {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()){
                 NetworkInterface current = interfaces.nextElement();
-                LOGGER.debug("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
+                LOGGER.trace("Checking: {} P2P: {}, LOOP: {}, Virtual: {}, Up: {}", current, current.isPointToPoint(), current.isLoopback(), current.isVirtual(), current.isUp());
                 if (!current.isUp() || current.isLoopback() || current.isVirtual() || current.isPointToPoint()) continue;
-                LOGGER.debug("Matching interface: {}", current);
+                LOGGER.trace("Matching interface: {}", current);
                 Enumeration<InetAddress> addresses = current.getInetAddresses();
                 while (addresses.hasMoreElements()){
                     InetAddress currentAddress = addresses.nextElement();
-                    LOGGER.debug("Checking address: {}", currentAddress);
+                    LOGGER.trace("Checking address: {}", currentAddress);
                     if (currentAddress.isLoopbackAddress() || !(currentAddress instanceof Inet6Address)) continue;
                     ip = currentAddress;
                 }

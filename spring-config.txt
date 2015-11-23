@@ -1,0 +1,31 @@
+An example usage of EGMP from Spring:
+
+<bean id="egmpConfig" class="org.gyurko.egmp.core.EgmpConfig">
+  <property name="port" value="1234"/>
+
+  <!-- IP address needs to be InetAddress if needed, see below the construction -->
+  <property name="ip">
+    <bean class="java.net.Inet4Address" factory-method="getByName">
+      <constructor-arg value="127.0.0.1"/>
+    </bean>
+  </property>
+  ...
+  ...
+  ...
+</bean>
+
+<bean id="egmp" class="org.gyurko.egmp.core.EgmpFactory" factory-method="getInstance">
+  <constructor-arg ref="egmpConfig">
+</bean>
+
+
+Later on from java you can autowire the egmp instance to perform isElevated() queries. Initialization can be done the
+same way, however I suggest to initialize/shutdown from a lifecycle listener.
+
+Another way is to use init-method and destory method as below:
+
+<bean id="egmp" class="org.gyurko.egmp.core.EgmpFactory" factory-method="getInstance" init-method="initEgmpNode"
+      destroy-method="shutdownEgmpNode">
+  <constructor-arg ref="egmpConfig">
+</bean>
+

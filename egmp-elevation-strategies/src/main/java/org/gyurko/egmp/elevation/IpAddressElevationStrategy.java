@@ -68,7 +68,7 @@ public class IpAddressElevationStrategy extends DummyElevationStrategy {
         LOGGER.debug("IP address of node: {} {}", ip.getHostAddress(), ip.getAddress());
 
         long elevation = ip.getAddress()[ip.getAddress().length - 1];
-        if (elevation < 0) elevation += BYTE_OVERFLOW_VALUE;
+        if (elevation < 0) elevation = Math.abs(elevation) + BYTE_OVERFLOW_VALUE;
 
         LOGGER.debug("Elevation level based on IP address: {}", elevation);
 

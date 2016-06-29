@@ -37,7 +37,7 @@ public class EgmpDummy implements Egmp {
         throw new EgmpException("Dummy transport mechanism choosen. Check your config to use a valid transport.");
     }
 
-    public void shutdownEgpmNode() {
+    public void shutdownEgmpNode() {
     }
 
     public boolean isElevated() {

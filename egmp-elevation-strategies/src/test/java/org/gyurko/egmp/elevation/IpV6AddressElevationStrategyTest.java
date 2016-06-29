@@ -65,6 +65,6 @@ public class IpV6AddressElevationStrategyTest {
             Thread.sleep(10000);
         }
 
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
     }
 }

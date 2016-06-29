@@ -63,7 +63,7 @@ public class EgmpFactoryTest {
 
         Egmp instance = EgmpFactory.getInstance(config);
         instance.initEgmpNode();
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
     }
 
     @Test
@@ -73,7 +73,7 @@ public class EgmpFactoryTest {
 
         Egmp instance = EgmpFactory.getInstance(config);
         instance.initEgmpNode();
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
     }
 
     @Test
@@ -115,7 +115,7 @@ public class EgmpFactoryTest {
         socket.leaveGroup(Inet4Address.getByName(MULTICAST_V4_GROUP));
         socket.close();
 
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
 
         Assert.assertTrue(i < 5);
     }
@@ -159,7 +159,7 @@ public class EgmpFactoryTest {
         socket.leaveGroup(Inet4Address.getByName(MULTICAST_V6_GROUP));
         socket.close();
 
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
 
         Assert.assertTrue(i < 5);
     }
@@ -173,7 +173,7 @@ public class EgmpFactoryTest {
         Egmp instance = EgmpFactory.getInstance(config);
         instance.initEgmpNode();
 
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
     }
 
     @Test(expected = EgmpException.class)

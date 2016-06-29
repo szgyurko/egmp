@@ -32,7 +32,7 @@ public interface Egmp {
     /**
      * Destroys EGMP node.
      */
-    void shutdownEgpmNode();
+    void shutdownEgmpNode();
 
     /** Returns true if the EGMP node is the elevated node. False otherwise */
     boolean isElevated();

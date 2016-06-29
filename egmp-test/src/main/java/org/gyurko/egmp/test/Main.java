@@ -105,6 +105,6 @@ public class Main implements Runnable {
         } catch (InterruptedException ie) {
         }
 
-        egmp.shutdownEgpmNode();
+        egmp.shutdownEgmpNode();
     }
 }

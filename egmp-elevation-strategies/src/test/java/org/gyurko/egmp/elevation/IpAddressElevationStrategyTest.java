@@ -68,7 +68,7 @@ public class IpAddressElevationStrategyTest {
             Thread.sleep(5000);
         }
 
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
     }
 
     @Test
@@ -95,7 +95,7 @@ public class IpAddressElevationStrategyTest {
             Thread.sleep(5000);
         }
 
-        instance.shutdownEgpmNode();
+        instance.shutdownEgmpNode();
     }
 
     /**

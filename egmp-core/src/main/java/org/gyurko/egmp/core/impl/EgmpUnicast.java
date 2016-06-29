@@ -97,7 +97,7 @@ public class EgmpUnicast implements Egmp {
         heartBeatReceiverThread.start();
     }
 
-    public void shutdownEgpmNode() {
+    public void shutdownEgmpNode() {
         if (egmpConfig.isHeartBeatSchedulerEnabled() && heartBeatSenderThread != null && heartBeatSenderThread.isAlive()) {
             heartBeatSenderThread.interrupt();
             try {

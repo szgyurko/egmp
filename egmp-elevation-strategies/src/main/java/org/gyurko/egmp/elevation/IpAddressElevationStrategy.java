@@ -48,7 +48,7 @@ public class IpAddressElevationStrategy extends DummyElevationStrategy {
                 while (addresses.hasMoreElements()){
                     InetAddress currentAddress = addresses.nextElement();
                     LOGGER.trace("Checking address: {}", currentAddress);
-                    if (currentAddress.isLoopbackAddress() || !(currentAddress instanceof Inet4Address)) continue;
+                    if (currentAddress.isLoopbackAddress() || (!(currentAddress instanceof Inet4Address) && !(currentAddress instanceof Inet6Address))) continue;
                     ip = currentAddress;
                 }
             }

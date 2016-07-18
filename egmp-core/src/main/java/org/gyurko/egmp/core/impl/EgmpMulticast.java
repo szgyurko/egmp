@@ -210,7 +210,7 @@ public class EgmpMulticast implements Egmp {
                 LOGGER.trace("Matching interface: {}", current);
                 for (InterfaceAddress currentAddress : current.getInterfaceAddresses()) {
                     LOGGER.trace("Checking address: {}", currentAddress);
-                    if (currentAddress.getAddress().isLoopbackAddress() || !(currentAddress.getAddress() instanceof Inet4Address)) continue;
+                    if (currentAddress.getAddress().isLoopbackAddress() || (!(currentAddress.getAddress() instanceof Inet4Address) && !(currentAddress.getAddress() instanceof Inet6Address))) continue;
                     LOGGER.trace("Matching address: {} against {}", currentAddress.getAddress().getHostAddress(), address.getHostAddress());
                     if (currentAddress.getAddress().getHostAddress().equals(address.getHostAddress())) {
                         LOGGER.trace("Address {} checks out as local address.", currentAddress);
